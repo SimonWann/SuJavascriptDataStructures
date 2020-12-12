@@ -13,12 +13,10 @@ class RedBlackTree {
         this.root = null
         this.pFromeG = ''
         this.gFromGp = ''
-        // this.heirarchy = 0
-        // this.lh = 1
-        // this.rh = 1
-        // this.treeImg = []
-        // this.isLeft = true
-        // this.gShow = false
+        this.recursion = {
+            isRecurse: false,
+            node: {}
+        }
     }
     travelsal() {
         let node = this.root
@@ -45,19 +43,24 @@ class RedBlackTree {
             this.travelsalNode(node.left)
         }
         if(node.right && node.right.key != -1) {
-            
             this.travelsalNode(node.right)
         } else {
             return
         }
-        
     }
     leave(level = 0) {
         return new Node(level, -1, 'NIL', 'black')
     }
-    insert(key, value) {
+    insert(key, value, recursion) {
         //按照正常二叉树的方式插入节点
-        const newNode = new Node(0, key, value, 'red')
+        let newNode 
+        if(this.recursion.isRecurse) {
+            newNode = this.recursion.node
+            console.log('cursion:',newNode)
+            this.recursion.isRecurse = false
+        } else {
+            newNode = new Node(0, key, value, 'red')
+        }
         let p = null
         let finalP = null
         let g = null
@@ -88,6 +91,7 @@ class RedBlackTree {
                 if(!gp) {
                     gp = g
                 } else {
+                    //利用g数据在下面循环更新，gp数据还没更新时，上面的判断会跳到这一块代码进行gp的更新
                     if(this.gFromGp === 'left') {
                         gp = gp.left
                     } else if(this.gFromGp === 'right') {
@@ -137,11 +141,11 @@ class RedBlackTree {
             }
         }
         //将现在插入成功的节点交给红黑树修正函数
-        u && console.log('u:', u.key, 'p:', p.key, 'newNode:', newNode.key)
+        // u && console.log('u:', u.key, 'p:', p.key, 'newNode:', newNode.key)
         this.fixup(newNode, finalP, g, u, gp)
     }
     fixup(n, p, g, u, gp) {
-        console.log('fix',this.root.key, n.key)
+        // console.log('fix',this.root.key, n.key)
         //修正的五条规则：
         //规则1：插入节点是根节点，将其颜色变红，并加入叶子节点
         if( this.root.key === n.key ) {
@@ -151,12 +155,6 @@ class RedBlackTree {
         }
         //规则2： 插入节点父节点p是黑色，插入节点n是红色。我们不需要做任何事情，除了增加与删除叶子节点
         else if(n.color === 'red' && p && p.color === 'black') {
-            console.log('situation 2')
-            // if(p.left && p.left.key === n.key) {
-            //     p.right = this.leave()
-            // } else if(p.right && p.right.key === n.key) {
-            //     p.left = this.leave()
-            // }
             n.left = this.leave()
             n.right = this.leave()
         }
@@ -166,24 +164,29 @@ class RedBlackTree {
             p.color = 'black'
             u.color = 'black'
             g.color = 'red'
-            n.right = this.leave()
-            n.left = this.leave()
+            if(!n.right) {
+                n.right = this.leave()
+            }
+            if(!n.left) {
+                n.left = this.leave()
+            }
+            
             if(this.root === g) {
                     g.color = 'black'
+                    gp = null
             }
-            // if(g.left.key === p.key) {
-            //     if(p.left.key === n.key) {
-                    
-            //     } else if(p.right.key === n.key) {
-
-            //     }
-            // }else if(g.right.key === p.key) {
-            //     if(p.left.key === n.key) {
-
-            //     } else if(p.right.key === n.key) {
-                    
-            //     }
-            // }
+            if(gp && gp.color == 'red') {
+                // console.log('recursion:',gp,this, g)
+                this.recursion.isRecurse = true
+                this.recursion.node = g
+                if(this.gFromGp === 'left') {
+                    gp.left = this.leave()
+                    this.insert(g.key, g.value, this.recursion)
+                } else if(this.gFromGp === 'right'){
+                    gp.left = this.leave()
+                    this.insert(g.key, g.value, this.recursion)
+                }
+            }
             //规则4： 父红，叔黑，祖黑，n左
         }else if(p && u && g && p.color === 'red' && u.color === 'black' && g.color === 'black' && p.left == n) {
             p.color = 'black'
@@ -191,18 +194,15 @@ class RedBlackTree {
             n.left = this.leave()
             n.right = this.leave()
             if(g.left.key == p.key) {
-                g.left = null
+                g.left = this.leave()
                 if(p.right && p.right.key != -1) {
                     g.left = p.right
                 }
             }else if(g.right.key == p.key) {
-                // g.right = null
-                // if(p.right && p.right.key != -1) {
-                //     g.left = p.right
-                // }
                 console.log(n,p,'here the right in situation 4')
             }
             p.right = g
+            //祖祖父的指向换掉
             if(this.gFromGp === 'left') {
                 gp.left = p
             } else if(this.gFromGp === 'right') {
@@ -216,161 +216,21 @@ class RedBlackTree {
             } else if(this.root.right == g) {
                 this.root.right = p
             }
+        //规则5 父红，叔红，祖黑，n右
+        }else if(p && u && g && p.color === 'red' && u.color === 'black' && g.color === 'black' && p.right == n) {
+            if(g.left.key === p.key) {
+                g.left = n
+                p.right = this.leave()
+                n.left = this.leave()
+                n.right = this.leave()
+                this.recursion.isRecurse = true
+                this.recursion.node = p
+                this.insert(p.key, p.value, this.recursion)
+            }else if(g.right.key === p.key) {
+                console.log('the situation is undefined')
+            }
         }
     }
-
-    //  --------------------------------old--------------------------------------  
-    // insert(key, value, color, level = 0) {
-    //     const n = new Node(level, key, value, color)
-    //     const p = null
-    //     const u = null
-    //     const g = null
-    //     const gp = null
-    //     if(!this.root) {
-    //         n.color = 'black'
-    //         this.root = n
-    //         n.left = this.leave(this.heirarchy + 1)
-    //         n.right = this.leave(this.heirarchy + 1)
-    //         this.heirarchy++
-    //         this.root.level = this.heirarchy
-    //     } else {
-    //         this.insertNode(this.root, n, p, g, u, gp)
-    //     }   
-    // }
-    // insertNode(node, newNode, p, g, u, gp) {
-     
-    //     p = node
-    //     if(newNode.key < node.key) {
-    //         if(node.left && node.left.key != -1) {
-    //             if(gp) {
-    //                 if(this.gShow) {
-    //                     if(newNode.key <gp.key) {
-    //                         this.isLeft = true
-    //                     } else {
-    //                         this.isLeft = false
-    //                     }
-    //                     this.gShow = false
-    //                 }
-    //             }
-    //             console.log('p:',node.left.key)
-    //             p = node.left
-    //             g = node
-    //             u = node.right
-    //             if((p.left && p.left.key != -1) || (p.right && p.right.key != -1)) {
-    //                 gp = g
-    //                 this.gShow = true
-    //                 // console.log('get and update gp-------', gp.key, gp.left.key, gp.right.key)
-    //             }
-    //             this.insertNode(node.left, newNode,p, g, u, gp)
-    //         }else if(node.left){
-    //             newNode.left = this.leave(this.lh + 1)
-    //             newNode.right = this.leave(this.rh + 1)
-    //             node.left = newNode
-    //             this.lh++
-    //             node.left.level = this.lh
-    //             if(p.color === 'black' && newNode.color === 'red') {
-    //                 console.log('here the 2')
-    //             } else if(p && u && g && p.color === 'red' && u.color === 'red' && g.color === 'black') {
-    //                 // p红u红g黑
-    //                 console.log('here the 3')
-    //                 p.color = 'black'
-    //                 u.color = 'black'
-    //                 g.color = 'red'
-    //             } else if(p && u && g && p.color === 'red' && u.color === 'black' && g.color === 'black') {
-    //                 console.log('here the 4')
-    //                 // p红u黑g黑n左
-    //                 if(gp) {
-    //                     if(this.isLeft) {
-    //                         gp.left = p
-    //                     } else {
-    //                         gp.right = p
-    //                     }
-    //                     p.color = 'black'
-    //                 }
-    //                 if(this.root == g) {
-    //                     if(this.isLeft) {
-    //                         this.root.left = p
-    //                     } else {
-    //                         this.root.right = p
-    //                     }
-    //                     console.log('root:',gp.key)
-    //                 }
-    //                 if(p.right && p.right.key != -1) {
-    //                     g.left = p.right
-    //                 }else if(p.right) {
-    //                     g.left = this.leave(u.level)
-    //                 }
-    //                 p.color = 'black'
-    //                 g.color = 'red'
-    //                 p.right = g
-    //             }
-    //         }
-    //     }else if(newNode.key > node.key){
-    //         if(gp) {
-    //             if(this.gShow) {
-    //                 if(newNode.key <gp.key) {
-    //                     this.isLeft = true
-    //                 } else {
-    //                     this.isLeft = false
-    //                 }
-    //                 this.gShow = false
-    //             }
-    //         }
-    //         if(node.right && node.right.key != -1) {
-    //             p = node.right
-    //             g = node
-    //             u = node.left
-    //             if((p.left && p.left.key != -1) || (p.right && p.right.key != -1)) {
-    //                 gp = g
-    //                 this.gShow = true
-    //             }
-    //             this.insertNode(node.right, newNode,p ,g ,u, gp)
-    //         } else if(node.right){
-    //             newNode.left = this.leave(this.lh + 1)
-    //             newNode.right = this.leave(this.rh + 1)
-    //             node.right = newNode
-    //             this.rh++
-    //             node.right.level = this.rh
-    //             if(p.color === 'black' && newNode.color === 'red') {
-    //                 console.log('here the 2')
-    //             } else if(p && u && g && p.color === 'red' && u.color === 'red' && g.color === 'black') {
-    //                 // p红u红g黑
-    //                 console.log('here the 3')
-    //                 p.color = 'black'
-    //                 u.color = 'black'
-    //                 g.color = 'red'
-    //             } else if(p.color === 'red' && u.color === 'black' && g.color === 'black') {
-    //                 //p红u黑g黑n右
-    //                 console.log('here is 5 ------------')
-    //                 g.left = node.right
-    //                 node.right.left = p
-    //                 p.right = this.leave(this.rh + 1)
-    //                 if(this.isLeft) {
-    //                     gp.left = node.right
-    //                 } else {
-    //                     gp.right = node.right
-    //                 }
-    //                 if(this.root == g) {
-    //                     this.root = node.right
-    //                     console.log('root:',this.root.key)
-    //                 }
-    //                 node.right.right = g
-    //                 node.right.color = 'black'
-    //                 g.color = 'red'
-    //             }
-                
-    //         }
-    //     }else {
-    //         return false
-    //     }
-    //     if(this.lh > this.rh) {
-    //         this.heirarchy = this.lh + 1
-    //     } else {
-    //         this.heirarchy = this.rh + 1
-    //     }
-    // }
-    //  --------------------------------old-------------------------------------- 
-
 }
 
 let ebt = new RedBlackTree()
