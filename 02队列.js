@@ -1,5 +1,5 @@
 class Queue{
-    constructor(item) {
+    constructor(item = []) {
         this.item = item
     }
     Dequeue() {
@@ -18,6 +18,7 @@ class Queue{
         return this.item.length
     }
 }
+exports.Queue = Queue
 
 const q1 = new Queue([1,2,3,4,5,0])
 // q1.Dequeue()
